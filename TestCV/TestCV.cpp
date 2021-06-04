@@ -25,7 +25,7 @@ IplImage* new_image;
 //IplImage* bin;
 //IplImage* dst;
 Mat new_image_mat;
-String imageName("mew one.jpg");
+String imageName("mew.jpg");
 
 vector<Rect> ReadOldPieces() {
 	ifstream f("data.txt", ios_base::in);
@@ -81,7 +81,7 @@ vector<Rect> ReadOldPieces() {
 }
 
 void WriteCoordinates(vector<Rect> boundRect, ofstream& f) {
-	for (int i = 0; i < boundRect.size(); i++) {
+ 	for (int i = 0; i < boundRect.size(); i++) {
 		f << "BR - " << boundRect[i].br().x << ";" << boundRect[i].br().y << endl;
 		f << "TL - " << boundRect[i].tl().x << ";" << boundRect[i].tl().y << endl;
 		f << endl;
@@ -181,15 +181,29 @@ IplImage* TransformMatToImg(Mat mat) {
 }
 
 void CopyOldPlaces() {
+	int j = 0;
+	Mat drawing = Mat::zeros(new_image_mat.size(), CV_8UC3);;
 	for (auto i : old) {
-
+		Mat subImg = new_image_mat(i);
+		RNG rng(12345);
+		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+		rectangle(drawing, i.tl(), i.br(), color, 2, 8, 0);
+		cvNamedWindow("rect", WINDOW_NORMAL);
+		imshow("rect", drawing);
+		cvWaitKey(0);
+		string filename = to_string(j);
+		imwrite(filename + "_old.jpg", subImg);
+		imwrite(filename + "_oldcompressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
+		j++;
 	}
 }
 
 void InsertOldPlaces(IplImage* orig_img)   {
 	//insert_old
+	int j = 0;
 	for (auto i : old) {
-		Mat subImg = new_image_mat(i);
+		Mat subImg = imread(to_string(j) + "_old.jpg");
+		//new_image_mat(i);
 		//wana see this?
 		//imshow("sub", subImg);
 		//cvWaitKey(0);
@@ -206,12 +220,13 @@ void InsertOldPlaces(IplImage* orig_img)   {
 		cvCopy(src_img, orig_img);
 		cvResetImageROI(orig_img);
 
+		cvNamedWindow("ROI", CV_WINDOW_NORMAL);
 		cvShowImage("ROI", orig_img);
 	    cvWaitKey(0);
 
 		/*string filename = to_string(j);
 		imwrite(filename + "_.jpg", subImg);*/
-		//j++;
+		j++;
 	}
 }
 
@@ -245,7 +260,7 @@ void InsertNewPlaces(IplImage* orig_img, vector<Rect> objects) {
 	namedWindow("out", WINDOW_NORMAL);
 	imshow("out", out_mat);
 	cvWaitKey(0);
-	imwrite("out.jpg", out_mat);
+	imwrite("original.jpg", out_mat);
 }
 
 
@@ -267,6 +282,7 @@ int main(int argc, char* argv[])
 		//cvNamedWindow("ROI", CV_WINDOW_NORMAL);
 		//read original
 		old = ReadOldPieces();
+		CopyOldPlaces();
 	}
 	if (!first_launch) {
 		String original_name("original.jpg");
@@ -282,7 +298,7 @@ int main(int argc, char* argv[])
 		InsertNewPlaces(orig_img, objects);
 	}
 
-	ofstream f("data.txt", ios::app || ios::trunc);
+	ofstream f("data.txt", ios::trunc);
 	WriteCoordinates(objects, f);
 	// ждём нажатия клавиши
 	cvWaitKey(0);
