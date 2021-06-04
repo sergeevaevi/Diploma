@@ -25,9 +25,9 @@ IplImage* new_image;
 //IplImage* bin;
 //IplImage* dst;
 Mat new_image_mat;
-String imageName("mew.jpg");
+String imageName("mew one.jpg");
 
-vector<Rect> FindOldPieces() {
+vector<Rect> ReadOldPieces() {
 	ifstream f("data.txt", ios_base::in);
 	vector<Rect> old_pieces;
 	CvPoint tl;
@@ -118,7 +118,7 @@ vector<Rect> FindObjects(Mat img) {
 		boundRect[i] = boundingRect(Mat(contours_poly[i]));
 		minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
 	}
-	/// Draw polygonal contour + bonding rects + circles
+	
 	Mat drawing = Mat::zeros(threshold_output.size(), CV_8UC3);
 	for (int i = 0; i < contours.size(); i++)
 	{
@@ -132,10 +132,10 @@ vector<Rect> FindObjects(Mat img) {
 		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
 		drawContours(drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
 		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
-		circle(drawing, center[i], (int)radius[i], color, 2, 8, 0);
-cvNamedWindow("rect", WINDOW_NORMAL);
-	imshow("rect", drawing);
-	cvWaitKey(0);
+		//circle(drawing, center[i], (int)radius[i], color, 2, 8, 0);
+		cvNamedWindow("rect", WINDOW_NORMAL);
+		imshow("rect", drawing);
+		cvWaitKey(0);
 		
 		// Никогда не забывайте удалять ИОР
 		cvResetImageROI(new_image);
@@ -180,7 +180,13 @@ IplImage* TransformMatToImg(Mat mat) {
 	return src_img;
 }
 
-void InsertOldPlaces(IplImage* orig_img) {
+void CopyOldPlaces() {
+	for (auto i : old) {
+
+	}
+}
+
+void InsertOldPlaces(IplImage* orig_img)   {
 	//insert_old
 	for (auto i : old) {
 		Mat subImg = new_image_mat(i);
@@ -200,8 +206,8 @@ void InsertOldPlaces(IplImage* orig_img) {
 		cvCopy(src_img, orig_img);
 		cvResetImageROI(orig_img);
 
-		//cvShowImage("ROI", orig_img);
-	//	cvWaitKey(0);
+		cvShowImage("ROI", orig_img);
+	    cvWaitKey(0);
 
 		/*string filename = to_string(j);
 		imwrite(filename + "_.jpg", subImg);*/
@@ -227,9 +233,10 @@ void InsertNewPlaces(IplImage* orig_img, vector<Rect> objects) {
 		cvCopy(src_img, orig_img);
 
 		cvResetImageROI(orig_img);
-		//cvNamedWindow("Res", WINDOW_NORMAL);
-		//cvShowImage("Res", orig_img);
-		//cvWaitKey(0);
+		cvNamedWindow("Res", WINDOW_NORMAL);
+		cvShowImage("Res", orig_img);
+		
+		cvWaitKey(0);
 		i_++;
 	}
 	//auto out_mat = Mat(&orig_img, true);
@@ -259,8 +266,11 @@ int main(int argc, char* argv[])
 		//namedWindow("sub", WINDOW_NORMAL);
 		//cvNamedWindow("ROI", CV_WINDOW_NORMAL);
 		//read original
+		old = ReadOldPieces();
+	}
+	if (!first_launch) {
 		String original_name("original.jpg");
-		old = FindOldPieces();
+		
 		// получаем картинку
 		Mat orig_mat = imread(original_name);
 
