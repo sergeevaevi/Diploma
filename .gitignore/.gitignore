@@ -1,4 +1,8 @@
 .vs/*
 Debug/
+TestCV/Debug/
+TestCV/stuff/
+TestCV/*.txt
+TestCV/*.jpg
 *.txt
 *.jpg
