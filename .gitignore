@@ -35,6 +35,7 @@
 Debug/
 TestCV/Debug/
 TestCV/stuff/
+TestCV/raw/
 TestCV/*.txt
 TestCV/*.jpg
 *.txt
