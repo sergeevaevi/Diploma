@@ -1,7 +1,0 @@
-﻿  TestCV.cpp
-C:\Users\User1\source\repos\TestCV\TestCV\TestCV.cpp(36,14): warning C4101: b: неиспользованная локальная переменная
-C:\Users\User1\source\repos\TestCV\TestCV\TestCV.cpp(36,8): warning C4101: c: неиспользованная локальная переменная
-C:\Users\User1\source\repos\TestCV\TestCV\TestCV.cpp(84,20): warning C4018: <: несоответствие типов со знаком и без знака
-C:\Users\User1\source\repos\TestCV\TestCV\TestCV.cpp(116,20): warning C4018: <: несоответствие типов со знаком и без знака
-C:\Users\User1\source\repos\TestCV\TestCV\TestCV.cpp(123,20): warning C4018: <: несоответствие типов со знаком и без знака
-  TestCV.vcxproj -> C:\Users\User1\source\repos\TestCV\Debug\TestCV.exe
