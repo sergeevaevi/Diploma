@@ -22,10 +22,9 @@ using namespace std;
 vector<Rect> old;
 IplImage* new_image;
 Mat new_image_mat;
-String imageName("mew2.jpg");
 
 vector<Rect> ReadOldPieces() {
-	ifstream f("data.txt", ios_base::in);
+	ifstream f("coordinates.txt", ios_base::in);
 	vector<Rect> old_pieces;
 	CvPoint tl;
 	CvPoint br;
@@ -78,7 +77,7 @@ vector<Rect> ReadOldPieces() {
 }
 
 void WriteCoordinates(vector<Rect> boundRect) {
-	ofstream f("data.txt", ios::trunc);
+	ofstream f("coordinates.txt", ios::trunc);
  	for (int i = 0; i < boundRect.size(); i++) {
 		f << "BR - " << boundRect[i].br().x << ";" << boundRect[i].br().y << endl;
 		f << "TL - " << boundRect[i].tl().x << ";" << boundRect[i].tl().y << endl;
@@ -131,25 +130,25 @@ vector<Rect> FindObjects(Mat img) {
 		cvSetImageROI(new_image, boundRect[i]);
 		Mat subImg = img(boundRect[i]);
 
-		RNG rng(12345);
-		Scalar color = Scalar(rng.uniform(0, 255), rng.uniform(0, 255), rng.uniform(0, 255));
+		Scalar color = Scalar(RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255));
 		drawContours(drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 2, 8, 0);
-		//circle(drawing, center[i], (int)radius[i], color, 2, 8, 0);
+		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 5, 8, 0);
 		// Никогда не забывайте удалять ИОР
 		cvResetImageROI(new_image);
 		string filename = to_string(i);
 		imwrite(filename + ".jpg", subImg);
-		imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
+		//imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
 	}
 	show("objects", drawing);
 	return boundRect;
 }
 
 bool IsCoordinatesEmpty() {
-	fstream file("data.txt");
-	if (!file.is_open())
+	fstream file("coordinates.txt");
+	if (!file.is_open()) {
 		cout << "Not open\n"; // если не открылся
+		return true;
+	}
 	else if (file.peek() == EOF)
 		return true;// если первый символ конец файла
 	file.close();
@@ -163,7 +162,11 @@ IplImage* TransformMatToImg(Mat mat) {
 	return src_img;
 }
 
-void GetImage() {
+void GetImage(int argc, char* argv[]) {
+	String imageName = "mew.jpg";
+	if (argc > 1) {
+		imageName = String(argv[1]);
+	}
 	new_image_mat = imread(imageName);// получаем картинку
 	if (new_image_mat.empty()) {// Check for invalid input
 		cout << "Could not open or find the image" << std::endl;
@@ -205,7 +208,6 @@ void InsertOldPlaces(IplImage* orig_img)   {
 }
 
 void InsertNewPlaces(IplImage* orig_img, vector<Rect> objects) {
-	//int i_ = 0;
 	for (int i = 0; i < objects.size(); i++) {
 		Mat src_mat = imread(to_string(i) + ".jpg");
 		auto src_img = TransformMatToImg(src_mat);
@@ -216,7 +218,6 @@ void InsertNewPlaces(IplImage* orig_img, vector<Rect> objects) {
 		cvCopy(src_img, orig_img);
 		cvResetImageROI(orig_img);
 		//show("ROI", orig_img);
-		//i_++;
 	}
 	Mat out_mat = cvarrToMat(orig_img);
 	show("out", out_mat);
@@ -227,13 +228,16 @@ void InsertNewPlaces(IplImage* orig_img, vector<Rect> objects) {
 int main(int argc, char* argv[])
 {
 	bool first_launch = IsCoordinatesEmpty();
-	GetImage();
+
+	GetImage(argc, argv);
 	if (first_launch) {
+		cout << "It is first launch/n";
 		imwrite("original.jpg", new_image_mat);
 	}
 	//find Objects on new image
 	auto objects = FindObjects(new_image_mat);
 	if (!first_launch) {
+		cout << "It is not first launch/n";
 		old = ReadOldPieces();
 		CopyOldPlaces();
 	}
@@ -252,6 +256,5 @@ int main(int argc, char* argv[])
 	cvReleaseImage(&new_image);
 	// удаляем окна
 	cvDestroyAllWindows();
-
 	return 0;
 }
