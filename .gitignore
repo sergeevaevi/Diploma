@@ -31,6 +31,12 @@
 *.out
 *.app
 
+*/.vs/*
+*/Debug/
+Compressor/.vs/*
+Compressor/Debug/
+Decompressor/.vs/*
+Decompressor/Debug/
 .vs/*
 Debug/
 TestCV/Debug/
