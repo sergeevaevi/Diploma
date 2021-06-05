@@ -20,10 +20,7 @@
 using namespace cv;
 using namespace std;
 
-vector<Rect> old_coord, new_coord;
-IplImage* new_image;
-Mat new_image_mat;
-string path = "C:/Users/User1/Documents/Course4/";
+string path = "C:/Users/User1/Documents/Course4/Diploma/";
 
 vector<Rect> ReadCoord(string file_name) {
 	ifstream f(file_name, ios_base::in);
@@ -79,61 +76,16 @@ vector<Rect> ReadCoord(string file_name) {
 	return pieces;
 }
 
-void show(string pic_name, Mat pic) {
+void Show(string pic_name, Mat& pic) {
 	cvNamedWindow(pic_name.c_str(), WINDOW_NORMAL);
 	imshow(pic_name.c_str(), pic);
 	cvWaitKey(0);
 }
 
-void show(string pic_name, IplImage* pic) {
+void Show(string pic_name, IplImage* pic) {
 	cvNamedWindow(pic_name.c_str(), CV_WINDOW_NORMAL);
 	cvShowImage(pic_name.c_str(), pic);
 	cvWaitKey(0);
-}
-
-vector<Rect> FindObjects(Mat img) {
-	Mat threshold_output = img, gray_mat;
-	vector<vector<Point> > contours;
-	vector<Vec4i> hierarchy;
-	int x = new_image->width, y = new_image->height;
-	////// создаём одноканальные картинки
-	cvtColor(img, gray_mat, CV_BGR2GRAY);
-	// Detect edges using Threshold
-	threshold(gray_mat, threshold_output, 100, 255, THRESH_BINARY);
-	/// Find contours
-	findContours(threshold_output, contours, hierarchy, CV_RETR_TREE, CV_CHAIN_APPROX_NONE, Point(0, 0));
-	// Approximate contours to polygons + get bounding rects and circles
-	vector<vector<Point> > contours_poly(contours.size());
-	vector<Rect> boundRect(contours.size());
-	vector<Point2f>center(contours.size());
-	vector<float>radius(contours.size());
-	printf("%d objects on pic\n", contours.size());
-	for (int i = 0; i < contours.size(); i++) {
-		approxPolyDP(Mat(contours[i]), contours_poly[i], 1, true);
-		boundRect[i] = boundingRect(Mat(contours_poly[i]));
-		minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
-	}
-
-	Mat drawing = Mat::zeros(threshold_output.size(), CV_8UC3);
-	for (int i = 0; i < contours.size(); i++)
-	{
-		printf("tl - (%d %d) - br - (%d %d) \n", boundRect[i].tl().x, boundRect[i].tl().y,
-			boundRect[i].br().x, boundRect[i].br().y);
-		cvRectangle(new_image, boundRect[i].tl(), boundRect[i].br(), CV_RGB(255, 0, 0));
-		cvSetImageROI(new_image, boundRect[i]);
-		Mat subImg = img(boundRect[i]);
-
-		Scalar color = Scalar(RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255));
-		drawContours(drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 5, 8, 0);
-		// Никогда не забывайте удалять ИОР
-		cvResetImageROI(new_image);
-		string filename = to_string(i);
-		imwrite(filename + ".jpg", subImg);
-		//imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
-	}
-	show("objects", drawing);
-	return boundRect;
 }
 
 bool IsCoordinatesEmpty() {
@@ -148,42 +100,14 @@ bool IsCoordinatesEmpty() {
 	return false;
 }
 
-IplImage* TransformMatToImg(Mat mat) {
+IplImage* TransformMatToImg(Mat& mat) {
 	auto src_img = cvCreateImage(cvSize(mat.cols, mat.rows), 8, 3);
 	IplImage buff = mat;
 	cvCopy(&buff, src_img);
 	return src_img;
 }
 
-void GetImage(int argc, char* argv[]) {
-	String imageName = "mew.jpg";
-	if (argc > 1) {
-		imageName = String(argv[1]);
-	}
-	new_image_mat = imread(imageName);// получаем картинку
-	if (new_image_mat.empty()) {// Check for invalid input
-		cout << "Could not open or find the image" << std::endl;
-		exit(-1);
-	}
-	//transform
-	new_image = TransformMatToImg(new_image_mat);//new_image = cvCreateImage(cvSize(new_image_mat.cols, new_image_mat.rows), 8, 3);//IplImage ipltemp = new_image_mat;//cvCopy(&ipltemp, new_image);
-	// покажем изображение
-	show("new", new_image);
-}
-
-void CopyOldPlaces() {
-	Mat drawing = Mat::zeros(new_image_mat.size(), CV_8UC3);;
-	for (int i = 0; i < old_coord.size(); i++) {
-		Mat subImg = new_image_mat(old_coord[i]);
-		Scalar color = Scalar(RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 255));
-		rectangle(drawing, old_coord[i].tl(), old_coord[i].br(), color, 5, 8, 0);
-		imwrite(to_string(i) + "_old.jpg", subImg);
-		//imwrite(filename + "_oldcompressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
-	}
-	show("old places", drawing);
-}
-
-void InsertOldPlaces(IplImage* orig_img) {
+void InsertOldPlaces(IplImage* orig_img, vector<Rect>& old_coord) {
 	for (int i = 0; i < old_coord.size(); i++) {
 		Mat subImg = imread(path+to_string(i) + "_old.jpg");
 		//wana see this?
@@ -196,11 +120,11 @@ void InsertOldPlaces(IplImage* orig_img) {
 		// копируем изображение
 		cvCopy(src_img, orig_img);
 		cvResetImageROI(orig_img);
-		//show("ROI", orig_img);
+		//Show("ROI", orig_img);
 	}
 }
 
-void InsertNewPlaces(IplImage* orig_img) {
+void InsertNewPlaces(IplImage* orig_img, vector<Rect>& new_coord) {
 	for (int i = 0; i < new_coord.size(); i++) {
 		Mat src_mat = imread(path+to_string(i) + ".jpg");
 		auto src_img = TransformMatToImg(src_mat);
@@ -213,39 +137,43 @@ void InsertNewPlaces(IplImage* orig_img) {
 		//show("ROI", orig_img);
 	}
 	Mat out_mat = cvarrToMat(orig_img);
-	show("out", out_mat);
-	imwrite("original.jpg", out_mat);
+	Show("out", out_mat);
+	imwrite(path + "original.jpg", out_mat);
 }
 
-void ReadCoords() {
+void AcceptChanges() {
+	string oldpath = path + "coordinates.txt";
+	string newpath = path + "new_coordinates.txt";
+	remove(oldpath.c_str());
+	if (rename(newpath.c_str(), oldpath.c_str())) {
+		cout << "Troubled renaming" << endl;
+	}
+}
+
+void ReadCoords(vector<Rect>& old_coord, vector<Rect>& new_coord) {
 	string oldpath = path + "coordinates.txt";
 	string newpath = path + "new_coordinates.txt";
 	old_coord = ReadCoord(oldpath);
 	new_coord = ReadCoord(newpath);
-	remove(oldpath.c_str());
-	rename(newpath.c_str(),oldpath.c_str());
+	AcceptChanges();
 }
 
 int main(int argc, char* argv[])
 {
+	vector<Rect> old_coord, new_coord;
 	bool first_launch = IsCoordinatesEmpty();
-
-	
-	//if (first_launch) {
-		//GetImage(argc, argv);
-		//imwrite(path+"original.jpg", new_image_mat);
-	//}
 	if (!first_launch) {
 		//read original
-		ReadCoords();
+		ReadCoords(old_coord, new_coord);
 		// получаем картинку фон
 		Mat orig_mat = imread(path + "original.jpg");
 		auto orig_img = TransformMatToImg(orig_mat);
-		InsertOldPlaces(orig_img);
-		InsertNewPlaces(orig_img);
+		InsertOldPlaces(orig_img, old_coord);
+		InsertNewPlaces(orig_img, new_coord);
 	}
-	// освобождаем ресурсы
-	cvReleaseImage(&new_image);
+	else {
+		AcceptChanges();
+	}
 	// удаляем окна
 	cvDestroyAllWindows();
 	return 0;

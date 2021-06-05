@@ -25,21 +25,21 @@ struct Img
 	Mat matImg;
 };
 
-string path = "C:/Users/User1/Documents/Course4/";
+string path = "C:/Users/User1/Documents/Course4/Diploma/";
 
-void show(string pic_name, Mat pic) {
+void Show(string pic_name, Mat& pic) {
 	cvNamedWindow(pic_name.c_str(), WINDOW_NORMAL);
 	imshow(pic_name.c_str(), pic);
 	cvWaitKey(0);
 }
 
-void show(string pic_name, IplImage* pic) {
+void Show(string pic_name, IplImage* pic) {
 	cvNamedWindow(pic_name.c_str(), CV_WINDOW_NORMAL);
 	cvShowImage(pic_name.c_str(), pic);
 	cvWaitKey(0);
 }
 
-IplImage* TransformMatToImg(Mat mat) {
+IplImage* TransformMatToImg(Mat& mat) {
 	auto src_img = cvCreateImage(cvSize(mat.cols, mat.rows), 8, 3);
 	IplImage buff = mat;
 	cvCopy(&buff, src_img);
@@ -48,7 +48,7 @@ IplImage* TransformMatToImg(Mat mat) {
 
 Img GetImage(int argc, char* argv[]) {
 	Img img;
-	String imageName = "mew.jpg";
+	String imageName = "mew2.jpg";
 	if (argc > 1) {
 		imageName = String(argv[1]);
 	}
@@ -60,7 +60,7 @@ Img GetImage(int argc, char* argv[]) {
 	//transform
 	img.implImg = TransformMatToImg(img.matImg);//new_image = cvCreateImage(cvSize(new_image_mat.cols, new_image_mat.rows), 8, 3);//IplImage ipltemp = new_image_mat;//cvCopy(&ipltemp, new_image);
 	// покажем изображение
-	show("new", img.implImg);
+	Show("new", img.implImg);
 	return img;
 }
 
@@ -118,7 +118,7 @@ vector<Rect> ReadCoord(string file_name) {
 	return pieces;
 }
 
-void WriteCoordinates(vector<Rect> boundRect) {
+void WriteCoordinates(vector<Rect>& boundRect) {
 	ofstream f(path+ "new_coordinates.txt", ios::trunc);
 	for (int i = 0; i < boundRect.size(); i++) {
 		f << "BR - " << boundRect[i].br().x << ";" << boundRect[i].br().y << endl;
@@ -128,7 +128,7 @@ void WriteCoordinates(vector<Rect> boundRect) {
 	f.close();
 }
 
-vector<Rect> FindObjects(Img img) {
+vector<Rect> FindObjects(Img& img) {
 	Mat threshold_output = img.matImg, gray_mat;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
@@ -169,7 +169,7 @@ vector<Rect> FindObjects(Img img) {
 		imwrite(path+filename + ".jpg", subImg);
 		//imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
 	}
-	show("objects", drawing);
+	Show("objects", drawing);
 	return boundRect;
 }
 
@@ -185,7 +185,7 @@ bool IsCoordinatesEmpty() {
 	return false;
 }
 
-void CopyOldPlaces(Img img, vector<Rect> old_coord) {
+void CopyOldPlaces(Img& img, vector<Rect>& old_coord) {
 	Mat drawing = Mat::zeros(img.matImg.size(), CV_8UC3);;
 	for (int i = 0; i < old_coord.size(); i++) {
 		Mat subImg = img.matImg(old_coord[i]);
@@ -193,26 +193,31 @@ void CopyOldPlaces(Img img, vector<Rect> old_coord) {
 		rectangle(drawing, old_coord[i].tl(), old_coord[i].br(), color, 5, 8, 0);
 		imwrite(path + to_string(i) + "_old.jpg", subImg);
 	}
-	show("old places", drawing);
+	Show("old places", drawing);
 }
 
 int main(int argc, char* argv[])
 {
+	//проверка файла с координатами
 	bool first_launch = IsCoordinatesEmpty();
+	//получение нового изображения
 	Img img = GetImage(argc, argv);
 	if (first_launch) {
+		//если алгоритм запущен впервые, то изображение остается неизменным
 		imwrite(path+"original.jpg", img.matImg);
 	}
-	//find Objects on new image
+	//поиск объектов на изображении
 	auto objects = FindObjects(img);
 	if (!first_launch) {
+		//сохранение частей изображения с предыдущих положений объектов
 		auto old_coord = ReadCoord(path + "coordinates.txt");
 		CopyOldPlaces(img, old_coord);
 	}
+	//запись координат новых положений объектов
 	WriteCoordinates(objects);
-	// освобождаем ресурсы
+	// освобождение ресурсов
 	cvReleaseImage(&img.implImg);
-	// удаляем окна
+	// удаление окон
 	cvDestroyAllWindows();
 	return 0;
 }
