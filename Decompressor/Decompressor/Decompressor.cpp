@@ -16,11 +16,10 @@
 #include <opencv2/imgproc/types_c.h>
 #include <string>
 #include <filesystem>
+#include "source.h"
 
 using namespace cv;
 using namespace std;
-
-string path = "C:/Users/User1/Documents/Course4/Diploma/";
 
 vector<Rect> ReadCoord(string file_name) {
 	ifstream f(file_name, ios_base::in);
@@ -89,7 +88,7 @@ void Show(string pic_name, IplImage* pic) {
 }
 
 bool IsCoordinatesEmpty() {
-	fstream file(path + "coordinates.txt");
+	fstream file(COORD_FILE);
 	if (!file.is_open()) {
 		cout << "Not open\n"; // если не открылся
 		return true;
@@ -109,24 +108,22 @@ IplImage* TransformMatToImg(Mat& mat) {
 
 void InsertOldPlaces(IplImage* orig_img, vector<Rect>& old_coord) {
 	for (int i = 0; i < old_coord.size(); i++) {
-		Mat subImg = imread(path+to_string(i) + "_old.jpg");
-		//wana see this?
-		//transform
+		Mat subImg = imread(PATH + to_string(i) + "_old.jpg");
 		auto src_img = TransformMatToImg(subImg);
-		//start insert
+		//выделяется место под часть изображения
 		cvSetImageROI(orig_img, old_coord[i]);
-		// обнулим изображение
+		// обнулим изображение в ИОР
 		cvZero(orig_img);
-		// копируем изображение
+		// копируем изображение в ИОР
 		cvCopy(src_img, orig_img);
+		// не забываем обнулить ИОР
 		cvResetImageROI(orig_img);
-		//Show("ROI", orig_img);
 	}
 }
 
 void InsertNewPlaces(IplImage* orig_img, vector<Rect>& new_coord) {
 	for (int i = 0; i < new_coord.size(); i++) {
-		Mat src_mat = imread(path+to_string(i) + ".jpg");
+		Mat src_mat = imread(PATH + to_string(i) + ".jpg");
 		auto src_img = TransformMatToImg(src_mat);
 		cvSetImageROI(orig_img, new_coord[i]);
 		// обнулим изображение
@@ -138,12 +135,13 @@ void InsertNewPlaces(IplImage* orig_img, vector<Rect>& new_coord) {
 	}
 	Mat out_mat = cvarrToMat(orig_img);
 	Show("out", out_mat);
-	imwrite(path + "original.jpg", out_mat);
+	// готовый файл записывается
+	imwrite(ORIG_FILE, out_mat);
 }
 
 void AcceptChanges() {
-	string oldpath = path + "coordinates.txt";
-	string newpath = path + "new_coordinates.txt";
+	string oldpath = COORD_FILE;
+	string newpath = NEW_COORD_FILE;
 	remove(oldpath.c_str());
 	if (rename(newpath.c_str(), oldpath.c_str())) {
 		cout << "Troubled renaming" << endl;
@@ -151,8 +149,8 @@ void AcceptChanges() {
 }
 
 void ReadCoords(vector<Rect>& old_coord, vector<Rect>& new_coord) {
-	string oldpath = path + "coordinates.txt";
-	string newpath = path + "new_coordinates.txt";
+	string newpath = NEW_COORD_FILE;
+	string oldpath = COORD_FILE;
 	old_coord = ReadCoord(oldpath);
 	new_coord = ReadCoord(newpath);
 	AcceptChanges();
@@ -161,17 +159,21 @@ void ReadCoords(vector<Rect>& old_coord, vector<Rect>& new_coord) {
 int main(int argc, char* argv[])
 {
 	vector<Rect> old_coord, new_coord;
+	//проверка файла с координатами
 	bool first_launch = IsCoordinatesEmpty();
 	if (!first_launch) {
-		//read original
+		//читаем файлы с координатами
 		ReadCoords(old_coord, new_coord);
 		// получаем картинку фон
-		Mat orig_mat = imread(path + "original.jpg");
+		Mat orig_mat = imread(ORIG_FILE);
 		auto orig_img = TransformMatToImg(orig_mat);
+		// добавляются места где объекты были до этого
 		InsertOldPlaces(orig_img, old_coord);
+		// и где объекты сейчас
 		InsertNewPlaces(orig_img, new_coord);
 	}
 	else {
+		// получаем файл с первыми координатами
 		AcceptChanges();
 	}
 	// удаляем окна

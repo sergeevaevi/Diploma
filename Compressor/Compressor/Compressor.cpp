@@ -15,6 +15,7 @@
 #include <opencv2/imgproc/imgproc_c.h>
 #include <opencv2/imgproc/types_c.h>
 #include <string>
+#include "source.h"
 
 using namespace cv;
 using namespace std;
@@ -24,8 +25,6 @@ struct Img
 	IplImage* implImg;
 	Mat matImg;
 };
-
-string path = "C:/Users/User1/Documents/Course4/Diploma/";
 
 void Show(string pic_name, Mat& pic) {
 	cvNamedWindow(pic_name.c_str(), WINDOW_NORMAL);
@@ -48,11 +47,11 @@ IplImage* TransformMatToImg(Mat& mat) {
 
 Img GetImage(int argc, char* argv[]) {
 	Img img;
-	String imageName = "ff1.jpg";
+	String imageName = FILENAME;
 	if (argc > 1) {
 		imageName = String(argv[1]);
 	}
-	img.matImg = imread(path + imageName);// получаем картинку
+	img.matImg = imread(PATH + imageName);// получаем картинку
 	if (img.matImg.empty()) {// Check for invalid input
 		cout << "Could not open or find the image" << std::endl;
 		exit(-1);
@@ -119,7 +118,7 @@ vector<Rect> ReadCoord(string file_name) {
 }
 
 void WriteCoordinates(vector<Rect>& boundRect) {
-	ofstream f(path+ "new_coordinates.txt", ios::trunc);
+	ofstream f(NEW_COORD_FILE, ios::trunc);
 	for (int i = 0; i < boundRect.size(); i++) {
 		f << "BR - " << boundRect[i].br().x << ";" << boundRect[i].br().y << endl;
 		f << "TL - " << boundRect[i].tl().x << ";" << boundRect[i].tl().y << endl;
@@ -128,138 +127,64 @@ void WriteCoordinates(vector<Rect>& boundRect) {
 	f.close();
 }
 
+void EnlargeROI(Mat& frm, Rect& boundingBox) {
+	int padding = EPSBOUND;
+	Rect returnRect = Rect(boundingBox.x - padding, boundingBox.y - padding, boundingBox.width + (padding * 2), boundingBox.height + (padding * 2));
+	if (returnRect.x < 0)returnRect.x = 0;
+	if (returnRect.y < 0)returnRect.y = 0;
+	if (returnRect.x + returnRect.width >= frm.cols)returnRect.width = frm.cols - returnRect.x;
+	if (returnRect.y + returnRect.height >= frm.rows)returnRect.height = frm.rows - returnRect.y;
+	boundingBox = returnRect;
+}
+
 vector<Rect> FindObjects(Img& img) {
 	Mat threshold_output = img.matImg, gray_mat, blur_image;
 	vector<vector<Point> > contours;
 	vector<Vec4i> hierarchy;
 	int x = img.implImg->width, y = img.implImg->height;
-	////// создаём одноканальные картинки
+	// создаём одноканальные картинки
 	cvtColor(img.matImg, gray_mat, CV_BGR2GRAY);
-	// Detect edges using Threshold
-	blur(gray_mat, blur_image, Size(10, 10)); // apply blur to grayscaled image
-	//GaussianBlur(gray_mat, blur_image, Size(10, 10), 0, 0);
-	Show("blur", blur_image);
-	threshold(blur_image, threshold_output, 70, 255, THRESH_BINARY);
-	//Canny(gray_mat, threshold_output, 90, 255, 3);
+	// размываем картинку чтобы убрать шумы
+	blur(gray_mat, blur_image, BLURSIZE);
+	// применяем пороговое преобразование для выделения объектов
+	threshold(blur_image, threshold_output, LOWTHRESHOLD, HIGHTHRESHOLD, THRESH_BINARY);
 	Show("threshold", threshold_output);
-	/// Find contours
+	/// Поиск контуров
 	findContours(threshold_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
-	
-	/*
-	
-	vector< vector<Point> > hull(contours.size());
-	for (int i = 0; i < contours.size(); i++) {
-
-		convexHull(Mat(contours[i]), hull[i], false);
-	}
-	Mat drawing1 = Mat::zeros(threshold_output.size(), CV_8UC3);
-	for (int i = 0; i < contours.size(); i++){
-		Scalar color_contours = Scalar(0, 255, 0); // green - color for contours
-		Scalar color = Scalar(255, 0, 0); // blue - color for convex hull
-		// draw ith contour
-	//	drawContours(drawing1, contours, i, color_contours, 5, 8, vector<Vec4i>(), 0, Point());
-		// draw ith convex hull
-		drawContours(drawing1, hull, i, color, 5, 8, vector<Vec4i>(), 0, Point());
-	}
-	Show("hull", drawing1);
-	// Approximate contours to polygons + get bounding rects and circles
-	vector<vector<Point> > poly(hull.size());
-	vector<Rect> bRect(hull.size());
-	printf("%d objects on pic\n", hull.size());
-	for (int i = 0; i < hull.size(); i++) {
-		approxPolyDP(Mat(hull[i]), poly[i], 1, true);
-		bRect[i] = boundingRect(Mat(poly[i]));
-		//	minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
-	}
-	Mat drawing = Mat::zeros(threshold_output.size(), CV_8UC3);
-	for (int i = 0; i < hull.size(); i++)
-	{
-		printf("tl - (%d %d) - br - (%d %d) \n", bRect[i].tl().x, bRect[i].tl().y,
-			bRect[i].br().x, bRect[i].br().y);
-
-		Scalar color = Scalar(RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255));
-
-		//drawContours(drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-		rectangle(drawing, bRect[i].tl(), bRect[i].br(), color, 5, 8, 0);
-
-	}*/
-
-	vector<Rect> boundRect(contours.size());
-// Approximate contours to polygons + get bounding rects and circles
+	// Аппроксимация контуров к прямоугольникам
 	vector<vector<Point> > contours_poly(contours.size());
-	
-	vector<Point2f>center(contours.size());
-	vector<float>radius(contours.size());
+	vector<Rect> boundRect(contours.size());
 	printf("%d objects on pic\n", contours.size());
 	for (int i = 0; i < contours.size(); i++) {
-		approxPolyDP(Mat(contours[i]), contours_poly[i], 1, true);
+		approxPolyDP(Mat(contours[i]), contours_poly[i], EPSBOUND, true);
 		boundRect[i] = boundingRect(Mat(contours_poly[i]));
-	//	minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
 	}
 
 	Mat drawing = Mat::zeros(threshold_output.size(), CV_8UC3);
 	for (int i = 0; i < contours.size(); i++)
 	{
+		EnlargeROI(img.matImg, boundRect[i]);
 		printf("tl - (%d %d) - br - (%d %d) \n", boundRect[i].tl().x, boundRect[i].tl().y,
 			boundRect[i].br().x, boundRect[i].br().y);
-		cvRectangle(img.implImg, boundRect[i].tl(), boundRect[i].br(), CV_RGB(255, 0, 0));
+		//отрисовка для наглядности
+		drawContours(drawing, contours_poly, i, CV_RGB(0, 255, 0), LINETHICK, LINETYPE, vector<Vec4i>(), 0, Point());
+		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), CV_RGB(0, 0, 255), LINETHICK, LINETYPE, 0);
+		//установка ИОР
 		cvSetImageROI(img.implImg, boundRect[i]);
+		//вырезание объекта
 		Mat subImg = img.matImg(boundRect[i]);
-
-		Scalar color = Scalar(RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 255), RNG(12345).uniform(0, 255));
-
-		//drawContours(drawing, contours_poly, i, color, 1, 8, vector<Vec4i>(), 0, Point());
-		rectangle(drawing, boundRect[i].tl(), boundRect[i].br(), color, 5, 8, 0);
-
-		// Никогда не забывайте удалять ИОР
+		//никогда не забываем удалять ИОР
 		cvResetImageROI(img.implImg);
 		string filename = to_string(i);
-		//imwrite(path+filename + ".jpg", subImg);
+		imwrite(PATH + filename + ".jpg", subImg);
 		//imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
 	}
-
 	Show("objects", drawing);
-
-	Mat drawng = drawing, gry_mat;
-	////// создаём одноканальные картинки
-	cvtColor(drawing, gry_mat, CV_BGR2GRAY);
-	threshold(gry_mat, drawng, 120, 255, THRESH_BINARY);
-		vector<vector<Point> > cntours;
-		vector<Vec4i> herarchy;
-
-		findContours(drawng, cntours, herarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
-		vector<vector<Point> > cntours_poly(cntours.size());
-		vector<Rect> bundRect(cntours.size());
-		vector<Point2f>cnter(cntours.size());
-		vector<float>rdius(cntours.size());
-		
-		for (int i = 0; i < cntours.size(); i++) {
-			approxPolyDP(Mat(cntours[i]), cntours_poly[i], 10, true);
-			bundRect[i] = boundingRect(Mat(cntours_poly[i]));
-			//	minEnclosingCircle((Mat)contours_poly[i], center[i], radius[i]);
-		}
-		printf("sec time! %d objects on pic\n", cntours.size());
-		Mat drwing = Mat::zeros(drawing.size(), CV_8UC3);
-		for (int i = 0; i < cntours.size(); i++)
-		{
-			printf("tl - (%d %d) - br - (%d %d) \n", bundRect[i].tl().x, bundRect[i].tl().y,
-				bundRect[i].br().x, bundRect[i].br().y);
-	
-			Scalar color = Scalar(RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 255));
-
-			//drawContours(drwing, cntours_poly, i, color, 5, 8, vector<Vec4i>(), 0, Point());
-			rectangle(drwing, bundRect[i].tl(), bundRect[i].br(), color, 5, 8, 0);
-
-
-		}
-
-	
-	Show("objects2", drwing);
 	return boundRect;
 }
 
 bool IsCoordinatesEmpty() {
-	fstream file(path+"coordinates.txt");
+	fstream file(COORD_FILE);
 	if (!file.is_open()) {
 		cout << "First launch\n"; // если не открылся
 		return true;
@@ -274,9 +199,8 @@ void CopyOldPlaces(Img& img, vector<Rect>& old_coord) {
 	Mat drawing = Mat::zeros(img.matImg.size(), CV_8UC3);;
 	for (int i = 0; i < old_coord.size(); i++) {
 		Mat subImg = img.matImg(old_coord[i]);
-		Scalar color = Scalar(RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 0), RNG(12345).uniform(0, 255));
-		rectangle(drawing, old_coord[i].tl(), old_coord[i].br(), color, 5, 8, 0);
-		imwrite(path + to_string(i) + "_old.jpg", subImg);
+		rectangle(drawing, old_coord[i].tl(), old_coord[i].br(), CV_RGB(0, 0, 255), LINETHICK, LINETYPE, 0);
+		imwrite(PATH + to_string(i) + "_old.jpg", subImg);
 	}
 	Show("old places", drawing);
 }
@@ -289,13 +213,13 @@ int main(int argc, char* argv[])
 	Img img = GetImage(argc, argv);
 	if (first_launch) {
 		//если алгоритм запущен впервые, то изображение остается неизменным
-		imwrite(path+"original.jpg", img.matImg);
+		imwrite(ORIG_FILE, img.matImg);
 	}
 	//поиск объектов на изображении
 	auto objects = FindObjects(img);
 	if (!first_launch) {
 		//сохранение частей изображения с предыдущих положений объектов
-		auto old_coord = ReadCoord(path + "coordinates.txt");
+		auto old_coord = ReadCoord(COORD_FILE);
 		CopyOldPlaces(img, old_coord);
 	}
 	//запись координат новых положений объектов
