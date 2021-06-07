@@ -150,7 +150,7 @@ vector<Rect> FindObjects(Img& img) {
 	threshold(blur_image, threshold_output, LOWTHRESHOLD, HIGHTHRESHOLD, THRESH_BINARY);
 	Show("threshold", threshold_output);
 	/// Поиск контуров
-	findContours(threshold_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_NONE, Point(0, 0));
+	findContours(threshold_output, contours, hierarchy, CV_RETR_EXTERNAL, CV_CHAIN_APPROX_SIMPLE, Point(0, 0));
 	// Аппроксимация контуров к прямоугольникам
 	vector<vector<Point> > contours_poly(contours.size());
 	vector<Rect> boundRect(contours.size());
@@ -159,7 +159,6 @@ vector<Rect> FindObjects(Img& img) {
 		approxPolyDP(Mat(contours[i]), contours_poly[i], EPSBOUND, true);
 		boundRect[i] = boundingRect(Mat(contours_poly[i]));
 	}
-
 	Mat drawing = Mat::zeros(threshold_output.size(), CV_8UC3);
 	for (int i = 0; i < contours.size(); i++)
 	{
