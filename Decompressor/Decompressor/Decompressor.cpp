@@ -100,18 +100,24 @@ bool IsCoordinatesEmpty() {
 }
 
 IplImage* TransformMatToImg(Mat& mat) {
-	auto src_img = cvCreateImage(cvSize(mat.cols, mat.rows), 8, 3);
-	IplImage buff = mat;
-	cvCopy(&buff, src_img);
-	return src_img;
+	if (!mat.empty()) {
+		auto src_img = cvCreateImage(cvSize(mat.cols, mat.rows), 8, 3);
+		IplImage buff = mat;
+		cvCopy(&buff, src_img);
+		return src_img;
+	}
+	else {
+		cout << "can't fing file" << endl;
+		exit(-1);
+	}	
 }
 
-void InsertOldPlaces(IplImage* orig_img, vector<Rect>& old_coord) {
-	for (int i = 0; i < old_coord.size(); i++) {
-		Mat subImg = imread(PATH + to_string(i) + "_old.jpg");
+void Insert(IplImage* orig_img, vector<Rect>& coord, string extension) {
+	for (int i = 0; i < coord.size(); i++) {
+		Mat subImg = imread(PATH + to_string(i) + extension);
 		auto src_img = TransformMatToImg(subImg);
 		//выделяется место под часть изображения
-		cvSetImageROI(orig_img, old_coord[i]);
+		cvSetImageROI(orig_img, coord[i]);
 		// обнулим изображение в ИОР
 		cvZero(orig_img);
 		// копируем изображение в ИОР
@@ -119,24 +125,6 @@ void InsertOldPlaces(IplImage* orig_img, vector<Rect>& old_coord) {
 		// не забываем обнулить ИОР
 		cvResetImageROI(orig_img);
 	}
-}
-
-void InsertNewPlaces(IplImage* orig_img, vector<Rect>& new_coord) {
-	for (int i = 0; i < new_coord.size(); i++) {
-		Mat src_mat = imread(PATH + to_string(i) + ".jpg");
-		auto src_img = TransformMatToImg(src_mat);
-		cvSetImageROI(orig_img, new_coord[i]);
-		// обнулим изображение
-		cvZero(orig_img);
-		//// копируем изображение
-		cvCopy(src_img, orig_img);
-		cvResetImageROI(orig_img);
-		//show("ROI", orig_img);
-	}
-	Mat out_mat = cvarrToMat(orig_img);
-	Show("out", out_mat);
-	// готовый файл записывается
-	imwrite(ORIG_FILE, out_mat);
 }
 
 void AcceptChanges() {
@@ -156,6 +144,12 @@ void ReadCoords(vector<Rect>& old_coord, vector<Rect>& new_coord) {
 	AcceptChanges();
 }
 
+void Write(IplImage* orig_img) {
+	Mat out_mat = cvarrToMat(orig_img);
+	// готовый файл записывается
+	imwrite(ORIG_FILE, out_mat);
+}
+
 int main(int argc, char* argv[])
 {
 	vector<Rect> old_coord, new_coord;
@@ -168,9 +162,13 @@ int main(int argc, char* argv[])
 		Mat orig_mat = imread(ORIG_FILE);
 		auto orig_img = TransformMatToImg(orig_mat);
 		// добавляются места где объекты были до этого
-		InsertOldPlaces(orig_img, old_coord);
+		Insert(orig_img, old_coord, MARKEDEXTENSION);
 		// и где объекты сейчас
-		InsertNewPlaces(orig_img, new_coord);
+		Insert(orig_img, new_coord, EXTENSION);
+		//отобразим результат для наглядности
+		Show("out", orig_img);
+		//итоговый файл записывается
+		Write(orig_img);
 	}
 	else {
 		// получаем файл с первыми координатами

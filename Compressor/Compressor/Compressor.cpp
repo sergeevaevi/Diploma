@@ -175,7 +175,7 @@ vector<Rect> FindObjects(Img& img) {
 		//никогда не забываем удалять ИОР
 		cvResetImageROI(img.implImg);
 		string filename = to_string(i);
-		imwrite(PATH + filename + ".jpg", subImg);
+		imwrite(PATH + filename + EXTENSION, subImg);
 		//imwrite(filename + "compressed.jpg", subImg, { IMWRITE_JPEG_QUALITY, 50 });
 	}
 	Show("objects", drawing);
@@ -199,7 +199,7 @@ void CopyOldPlaces(Img& img, vector<Rect>& old_coord) {
 	for (int i = 0; i < old_coord.size(); i++) {
 		Mat subImg = img.matImg(old_coord[i]);
 		rectangle(drawing, old_coord[i].tl(), old_coord[i].br(), CV_RGB(0, 0, 255), LINETHICK, LINETYPE, 0);
-		imwrite(PATH + to_string(i) + "_old.jpg", subImg);
+		imwrite(PATH + to_string(i) + MARKEDEXTENSION, subImg);
 	}
 	Show("old places", drawing);
 }
